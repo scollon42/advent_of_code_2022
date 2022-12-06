@@ -1,0 +1,108 @@
+# Day5
+
+```elixir
+Mix.install([
+  {:req, "~> 0.3.0"}
+])
+```
+
+## Input
+
+```elixir
+# thanks to https://twitter.com/ryoung786/status/1598415749638397962?s=20&t=TLW9UlzqB9uOYhPjuGQuSQ
+
+day = 5
+aoc_session = System.fetch_env!("LB_AOC_SESSION_COOKIE")
+input_url = "https://adventofcode.com/2022/day/#{day}/input"
+
+input = Req.get!(input_url, headers: [cookie: "session=#{aoc_session}"]).body
+```
+
+```elixir
+input =
+  input
+  |> String.split("\n")
+  |> Enum.chunk_by(&(&1 == ""))
+  |> Enum.reject(&(&1 == [""]))
+```
+
+## Main module
+
+```elixir
+defmodule Day5 do
+  def run(input, mode \\ :simple) do
+    stacks = parse_stacks(input)
+    moves = parse_moves(input)
+
+    stacks
+    |> apply_moves(moves, mode)
+    |> Enum.map(fn {_, [head | _]} -> head end)
+    |> Enum.join()
+  end
+
+  defp apply_moves(stacks, moves, mode) do
+    Enum.reduce(moves, stacks, fn [count, from, to], stacks ->
+      from_stack = Map.get(stacks, from)
+      moving_values = Enum.take(from_stack, count)
+      from_stack = Enum.drop(from_stack, count)
+
+      stacks
+      |> push_on_stack(to, moving_values(moving_values, mode))
+      |> Map.put(from, from_stack)
+    end)
+  end
+
+  defp moving_values(moving_values, :simple), do: Enum.reverse(moving_values)
+  defp moving_values(moving_values, _), do: moving_values
+
+  defp parse_moves([_, moves]) do
+    Enum.map(moves, fn move ->
+      [count, from, to] = String.split(move, ["move ", " from ", " to "], trim: true)
+
+      [String.to_integer(count), from, to]
+    end)
+  end
+
+  defp parse_stacks([stacks, _]) do
+    [_ | stacks] =
+      stacks
+      |> Enum.reverse()
+      |> Enum.map(fn s ->
+        s
+        |> String.codepoints()
+        |> Enum.chunk_every(4)
+        |> Enum.map(&Enum.join/1)
+      end)
+
+    stacks
+    |> Enum.reduce(%{}, fn values, stacks ->
+      values_with_index =
+        Enum.with_index(values, fn v, index ->
+          v = String.replace(v, ["[", "]", " "], "")
+          ["#{index + 1}", v]
+        end)
+
+      Enum.reduce(values_with_index, stacks, fn [index, value], stacks ->
+        push_on_stack(stacks, index, [value])
+      end)
+    end)
+  end
+
+  defp push_on_stack(stacks, _index, [""]), do: stacks
+
+  defp push_on_stack(stacks, index, value),
+    do: Map.put(stacks, index, value ++ Map.get(stacks, index, []))
+end
+```
+
+## Part 1
+
+```elixir
+Day5.run(input)
+```
+
+## Part 2
+
+```elixir
+Day5.run(input, :bulk)
+```

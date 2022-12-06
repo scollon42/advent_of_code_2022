@@ -1,0 +1,81 @@
+# Day3
+
+```elixir
+Mix.install([
+  {:req, "~> 0.3.0"}
+])
+```
+
+## Input
+
+```elixir
+# thanks to https://twitter.com/ryoung786/status/1598415749638397962?s=20&t=TLW9UlzqB9uOYhPjuGQuSQ
+
+day = 3
+aoc_session = System.fetch_env!("LB_AOC_SESSION_COOKIE")
+input_url = "https://adventofcode.com/2022/day/#{day}/input"
+
+input = Req.get!(input_url, headers: [cookie: "session=#{aoc_session}"]).body
+```
+
+```elixir
+input = String.split(input, "\n", trim: true)
+```
+
+## Module
+
+```elixir
+defmodule Day3Helpers do
+  def form_rucksack_from_line(line) do
+    line
+    |> String.trim()
+    |> String.to_charlist()
+  end
+
+  def form_compartment_from_rucksack(rucksack) do
+    compartment_size =
+      rucksack
+      |> Enum.count()
+      |> Integer.floor_div(2)
+
+    Enum.chunk_every(rucksack, compartment_size)
+  end
+
+  def common_items([compartment1, compartment2]) do
+    compartment1
+    |> Enum.filter(&(&1 in compartment2))
+    |> Enum.uniq()
+  end
+
+  def common_items([rucksack1, rucksack2, rucksack3]) do
+    Enum.filter(rucksack1, &(&1 in rucksack2 and &1 in rucksack3))
+  end
+
+  def compute_priority([v | _]) when v in ?a..?z, do: v - ?a + 1
+  def compute_priority([v | _]) when v in ?A..?Z, do: v - ?A + 27
+end
+```
+
+## Part 1
+
+```elixir
+input
+|> Stream.map(&Day3Helpers.form_rucksack_from_line/1)
+|> Stream.map(&Day3Helpers.form_compartment_from_rucksack/1)
+|> Stream.map(&Day3Helpers.common_items/1)
+|> Stream.map(&Day3Helpers.compute_priority/1)
+|> Enum.sum()
+```
+
+## Part 2
+
+```elixir
+input
+|> Stream.chunk_every(3)
+|> Stream.map(fn lines ->
+  Enum.map(lines, &Day3Helpers.form_rucksack_from_line/1)
+end)
+|> Stream.map(&Day3Helpers.common_items/1)
+|> Stream.map(&Day3Helpers.compute_priority/1)
+|> Enum.sum()
+```

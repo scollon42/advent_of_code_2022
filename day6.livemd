@@ -1,0 +1,67 @@
+# Day6
+
+```elixir
+Mix.install([
+  {:req, "~> 0.3.0"}
+])
+```
+
+## Input
+
+```elixir
+# thanks to https://twitter.com/ryoung786/status/1598415749638397962?s=20&t=TLW9UlzqB9uOYhPjuGQuSQ
+
+day = 6
+aoc_session = System.fetch_env!("LB_AOC_SESSION_COOKIE")
+input_url = "https://adventofcode.com/2022/day/#{day}/input"
+
+input = Req.get!(input_url, headers: [cookie: "session=#{aoc_session}"]).body
+```
+
+## Part 1
+
+```elixir
+marker_size = 4
+
+{_, index} =
+  input
+  |> String.replace("\n", "")
+  |> String.codepoints()
+  |> Enum.with_index()
+  |> Enum.chunk_every(marker_size, 1)
+  |> Enum.find(fn list ->
+    size =
+      list
+      |> Enum.uniq_by(&elem(&1, 0))
+      |> Enum.count()
+
+    size == marker_size
+  end)
+  |> List.last()
+
+index + 1
+```
+
+## Part 2
+
+```elixir
+marker_size = 14
+
+{_, index} =
+  input
+  |> String.replace("\n", "")
+  |> String.codepoints()
+  |> Enum.with_index()
+  |> Enum.chunk_every(marker_size, 1)
+  |> Enum.find(fn list ->
+    size =
+      list
+      |> Enum.uniq_by(&elem(&1, 0))
+      |> Enum.count()
+
+    size == marker_size
+  end)
+  |> List.last()
+
+index + 1
+```

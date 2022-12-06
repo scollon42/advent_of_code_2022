@@ -1,0 +1,58 @@
+# Day4
+
+```elixir
+Mix.install([
+  {:req, "~> 0.3.0"}
+])
+```
+
+## Input
+
+```elixir
+# thanks to https://twitter.com/ryoung786/status/1598415749638397962?s=20&t=TLW9UlzqB9uOYhPjuGQuSQ
+
+day = 4
+aoc_session = System.fetch_env!("LB_AOC_SESSION_COOKIE")
+input_url = "https://adventofcode.com/2022/day/#{day}/input"
+
+input = Req.get!(input_url, headers: [cookie: "session=#{aoc_session}"]).body
+```
+
+```elixir
+input =
+  input
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line ->
+    line
+    |> String.split(",")
+    |> Enum.map(fn range ->
+      [from, to] = String.split(range, "-")
+
+      [String.to_integer(from), String.to_integer(to)]
+    end)
+  end)
+```
+
+## Part 1
+
+```elixir
+input
+|> Enum.filter(fn [[from1, to1], [from2, to2]] ->
+  (from1 <= from2 and to1 >= to2) or (from2 <= from1 and to2 >= to1)
+end)
+|> Enum.count()
+```
+
+## Part 2
+
+```elixir
+input
+|> Enum.map(fn [[from1, to1], [from2, to2]] ->
+  range1 = MapSet.new(from1..to1)
+  range2 = MapSet.new(from2..to2)
+
+  MapSet.intersection(range1, range2)
+end)
+|> Enum.reject(&Enum.empty?/1)
+|> Enum.count()
+```

@@ -1,0 +1,97 @@
+# Day2
+
+```elixir
+Mix.install([
+  {:req, "~> 0.3.0"}
+])
+```
+
+## Input
+
+```elixir
+# thanks to https://twitter.com/ryoung786/status/1598415749638397962?s=20&t=TLW9UlzqB9uOYhPjuGQuSQ
+
+day = 2
+aoc_session = System.fetch_env!("LB_AOC_SESSION_COOKIE")
+input_url = "https://adventofcode.com/2022/day/#{day}/input"
+
+input = Req.get!(input_url, headers: [cookie: "session=#{aoc_session}"]).body
+```
+
+```elixir
+input = String.split(input, "\n", trim: true)
+```
+
+## Helpers
+
+```elixir
+defmodule Helpers do
+  @enemy_rock "A"
+  @enemy_paper "B"
+  @enemy_scissors "C"
+  @my_rock "X"
+  @my_paper "Y"
+  @my_scissors "Z"
+
+  def choice_score(@my_rock), do: 1
+  def choice_score(@my_paper), do: 2
+  def choice_score(@my_scissors), do: 3
+
+  def outcome(@enemy_rock, @my_paper), do: :win
+  def outcome(@enemy_paper, @my_scissors), do: :win
+  def outcome(@enemy_scissors, @my_rock), do: :win
+  def outcome(@enemy_rock, @my_scissors), do: :loose
+  def outcome(@enemy_paper, @my_rock), do: :loose
+  def outcome(@enemy_scissors, @my_paper), do: :loose
+  def outcome(_, _), do: :draw
+
+  def to_win(@enemy_rock), do: @my_paper
+  def to_win(@enemy_paper), do: @my_scissors
+  def to_win(@enemy_scissors), do: @my_rock
+  def to_loose(@enemy_rock), do: @my_scissors
+  def to_loose(@enemy_paper), do: @my_rock
+  def to_loose(@enemy_scissors), do: @my_paper
+  def to_draw(@enemy_rock), do: @my_rock
+  def to_draw(@enemy_paper), do: @my_paper
+  def to_draw(@enemy_scissors), do: @my_scissors
+end
+```
+
+## Part 1
+
+```elixir
+input
+|> Stream.map(fn line ->
+  [enemy, me] = String.split(line)
+
+  case Helpers.outcome(enemy, me) do
+    :win -> 6 + Helpers.choice_score(me)
+    :draw -> 3 + Helpers.choice_score(me)
+    _ -> Helpers.choice_score(me)
+  end
+end)
+|> Enum.sum()
+```
+
+## Part 2
+
+```elixir
+input
+|> Stream.map(fn line ->
+  [enemy, strategy] = String.split(line)
+
+  [enemy, me] =
+    case strategy do
+      "X" -> [enemy, Helpers.to_loose(enemy)]
+      "Y" -> [enemy, Helpers.to_draw(enemy)]
+      "Z" -> [enemy, Helpers.to_win(enemy)]
+    end
+
+  case Helpers.outcome(enemy, me) do
+    :win -> 6 + Helpers.choice_score(me)
+    :draw -> 3 + Helpers.choice_score(me)
+    _ -> Helpers.choice_score(me)
+  end
+end)
+|> Enum.sum()
+```

@@ -1,0 +1,51 @@
+# Day1
+
+```elixir
+Mix.install([
+  {:req, "~> 0.3.0"}
+])
+```
+
+## Input
+
+```elixir
+# thanks to https://twitter.com/ryoung786/status/1598415749638397962?s=20&t=TLW9UlzqB9uOYhPjuGQuSQ
+day = 1
+aoc_session = System.fetch_env!("LB_AOC_SESSION_COOKIE")
+input_url = "https://adventofcode.com/2022/day/#{day}/input"
+
+input = Req.get!(input_url, headers: [cookie: "session=#{aoc_session}"]).body
+```
+
+```elixir
+chunk_func = fn element, acc ->
+  case Integer.parse(element) do
+    :error -> {:cont, acc, 0}
+    {element, _} -> {:cont, acc + element}
+  end
+end
+
+after_func = fn
+  [] -> {:cont, []}
+  acc -> {:cont, acc, []}
+end
+
+input =
+  input
+  |> String.split("\n")
+  |> Stream.chunk_while(0, chunk_func, after_func)
+  |> Enum.sort(:desc)
+  |> Enum.take(3)
+```
+
+## Part 1
+
+```elixir
+input |> hd
+```
+
+## Part 2
+
+```elixir
+Enum.sum(input)
+```
