@@ -43,10 +43,6 @@ defmodule FileServer do
     GenServer.call(__MODULE__, {:all_under, max_size})
   end
 
-  def register_dir(path) do
-    GenServer.call(__MODULE__, {:register_dir, path})
-  end
-
   def increase_dir_size(path, size) do
     GenServer.call(__MODULE__, {:increase_dir_size, path, size})
   end
@@ -69,11 +65,6 @@ defmodule FileServer do
   @impl true
   def handle_call({:all_under, max_size}, _, state) do
     {:reply, Enum.filter(state, fn {_, v} -> v < max_size end), state}
-  end
-
-  @impl true
-  def handle_call({:register_dir, path}, _, state) do
-    {:reply, path, Map.put(state, path, 0)}
   end
 
   @impl true
@@ -126,26 +117,21 @@ input
 |> Kino.Input.read()
 |> String.split("\n", trim: true)
 |> Enum.reduce("", fn line, current_path ->
-  case line do
-    "dir " <> dirname ->
-      FileServer.register_dir(current_path <> "/" <> dirname)
-      current_path
-
-    "$ cd .." ->
+  case String.split(line, " ", trim: true) do
+    [_, "cd", ".."] ->
       FileServer.previous_path(current_path)
 
-    "$ cd " <> dirname ->
+    [_, "cd", dirname] ->
       FileServer.next_path(current_path, dirname)
 
-    "$ ls" ->
-      current_path
-
-    file ->
-      [size, _] = String.split(file, " ", trim: true)
+    [size, _] when size not in ["$", "dir"] ->
       size = String.to_integer(size)
 
       FileServer.increase_dir_size(current_path, size)
 
+      current_path
+
+    _ ->
       current_path
   end
 end)
