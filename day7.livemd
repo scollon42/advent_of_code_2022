@@ -1,0 +1,178 @@
+# Day7
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+## GenServer
+
+```elixir
+defmodule FileServer do
+  use GenServer
+
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+  end
+
+  @impl true
+  def init(_) do
+    {:ok, %{}}
+  end
+
+  def flush() do
+    GenServer.call(__MODULE__, :flush)
+  end
+
+  def get_dir(path) do
+    GenServer.call(__MODULE__, {:get, path})
+  end
+
+  def list_all_dirs() do
+    GenServer.call(__MODULE__, :list_all)
+  end
+
+  def list_all_under(max_size) do
+    GenServer.call(__MODULE__, {:all_under, max_size})
+  end
+
+  def register_dir(path) do
+    GenServer.call(__MODULE__, {:register_dir, path})
+  end
+
+  def increase_dir_size(path, size) do
+    GenServer.call(__MODULE__, {:increase_dir_size, path, size})
+  end
+
+  @impl true
+  def handle_call(:flush, _, _) do
+    {:reply, "", %{}}
+  end
+
+  @impl true
+  def handle_call({:get, path}, _, state) do
+    {:reply, Map.get(state, path, 0), state}
+  end
+
+  @impl true
+  def handle_call(:list_all, _, state) do
+    {:reply, state, state}
+  end
+
+  @impl true
+  def handle_call({:all_under, max_size}, _, state) do
+    {:reply, Enum.filter(state, fn {_, v} -> v < max_size end), state}
+  end
+
+  @impl true
+  def handle_call({:register_dir, path}, _, state) do
+    {:reply, path, Map.put(state, path, 0)}
+  end
+
+  @impl true
+  def handle_call({:increase_dir_size, path, size}, _, state) do
+    {:reply, path, change_dir_size(state, path, size)}
+  end
+
+  defp change_dir_size(state, path, offset) do
+    current_dir_size = Map.get(state, path, 0)
+    new_dir_size = current_dir_size + offset
+
+    state =
+      case path do
+        "/" -> state
+        _ -> change_dir_size(state, previous_path(path), offset)
+      end
+
+    Map.put(state, path, new_dir_size)
+  end
+
+  def next_path(path, dirname) do
+    [path, dirname]
+    |> Enum.reject(&(&1 == ""))
+    |> Path.join()
+  end
+
+  def previous_path(path) do
+    path
+    |> Path.split()
+    |> Enum.reverse()
+    |> Enum.drop(1)
+    |> Enum.reverse()
+    |> Path.join()
+  end
+end
+```
+
+## Starting GenServer
+
+```elixir
+FileServer.start_link([])
+```
+
+## Register data into GenServer
+
+```elixir
+GenServer.call(FileServer, :flush)
+
+input
+|> Kino.Input.read()
+|> String.split("\n", trim: true)
+|> Enum.reduce("", fn line, current_path ->
+  case line do
+    "dir " <> dirname ->
+      FileServer.register_dir(current_path <> "/" <> dirname)
+      current_path
+
+    "$ cd .." ->
+      FileServer.previous_path(current_path)
+
+    "$ cd " <> dirname ->
+      FileServer.next_path(current_path, dirname)
+
+    "$ ls" ->
+      current_path
+
+    file ->
+      [size, _] = String.split(file, " ", trim: true)
+      size = String.to_integer(size)
+
+      FileServer.increase_dir_size(current_path, size)
+
+      current_path
+  end
+end)
+```
+
+## Part 1
+
+```elixir
+100_000
+|> FileServer.list_all_under()
+|> Enum.map(fn {_, v} -> v end)
+|> Enum.sum()
+```
+
+## Part 2
+
+```elixir
+total_disk_size = 70_000_000
+required_space = 30_000_000
+
+space_taken = FileServer.get_dir("/")
+
+unused_space = total_disk_size - space_taken
+missing_space = required_space - unused_space
+
+FileServer.list_all_dirs()
+|> Enum.reject(fn {_k, v} -> v < missing_space end)
+|> Enum.sort_by(fn {_k, v} -> v end)
+|> Enum.take(1)
+```
