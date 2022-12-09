@@ -1,0 +1,149 @@
+# Day8
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+input =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+
+col_len = input |> Enum.at(0) |> String.length()
+row_len = input |> length()
+
+input =
+  input
+  |> Enum.map(fn line ->
+    line
+    |> String.split("", trim: true)
+    |> Enum.map(&String.to_integer/1)
+  end)
+
+zipped_input =
+  input
+  |> Enum.zip()
+  |> Enum.map(&Tuple.to_list/1)
+```
+
+## Part 1
+
+```elixir
+0..(row_len - 1)
+|> Enum.reduce(0, fn row, acc ->
+  0..(col_len - 1)
+  |> Enum.reduce(acc, fn col, acc ->
+    cond do
+      row == 0 || row == row_len - 1 ->
+        acc + 1
+
+      col == 0 || col == col_len - 1 ->
+        acc + 1
+
+      true ->
+        value = Enum.at(input, row) |> Enum.at(col)
+
+        left = Enum.at(input, row) |> Enum.slice(0..(col - 1))
+        right = Enum.at(input, row) |> Enum.slice((col + 1)..(col_len - 1))
+        top = Enum.at(zipped_input, col) |> Enum.slice(0..(row - 1))
+        bottom = Enum.at(zipped_input, col) |> Enum.slice((row + 1)..(row_len - 1))
+
+        cond do
+          Enum.max(left) < value -> acc + 1
+          Enum.max(right) < value -> acc + 1
+          Enum.max(top) < value -> acc + 1
+          Enum.max(bottom) < value -> acc + 1
+          true -> acc
+        end
+    end
+  end)
+end)
+```
+
+## Part 2
+
+```elixir
+0..(row_len - 1)
+|> Enum.reduce(0, fn row, acc ->
+  0..(col_len - 1)
+  |> Enum.reduce(acc, fn col, acc ->
+    value = Enum.at(input, row) |> Enum.at(col)
+
+    cond do
+      row == 0 || row == row_len - 1 ->
+        acc
+
+      col == 0 || col == col_len - 1 ->
+        acc
+
+      true ->
+        left =
+          0..(col - 1)
+          |> Enum.reverse()
+          |> Enum.map(&[row, &1])
+          |> Enum.reduce_while(0, fn [r, c], acc ->
+            v = Enum.at(input, r, []) |> Enum.at(c)
+
+            if v >= value do
+              {:halt, acc + 1}
+            else
+              {:cont, acc + 1}
+            end
+          end)
+
+        right =
+          (col + 1)..(col_len - 1)
+          |> Enum.map(&[row, &1])
+          |> Enum.reduce_while(0, fn [r, c], acc ->
+            v = Enum.at(input, r, []) |> Enum.at(c)
+
+            if v >= value do
+              {:halt, acc + 1}
+            else
+              {:cont, acc + 1}
+            end
+          end)
+
+        top =
+          0..(row - 1)
+          |> Enum.reverse()
+          |> Enum.map(&[&1, col])
+          |> Enum.reduce_while(0, fn [r, c], acc ->
+            v = Enum.at(input, r, []) |> Enum.at(c)
+
+            if v >= value do
+              {:halt, acc + 1}
+            else
+              {:cont, acc + 1}
+            end
+          end)
+
+        bottom =
+          (row + 1)..(row_len - 1)
+          |> Enum.map(&[&1, col])
+          |> Enum.reduce_while(0, fn [r, c], acc ->
+            v = Enum.at(input, r, []) |> Enum.at(c)
+
+            if v >= value do
+              {:halt, acc + 1}
+            else
+              {:cont, acc + 1}
+            end
+          end)
+
+        product = Enum.product([left, right, top, bottom])
+
+        max(acc, product)
+    end
+  end)
+end)
+```
