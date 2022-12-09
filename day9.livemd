@@ -1,0 +1,101 @@
+# Day9
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("input")
+```
+
+```elixir
+moves =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line ->
+    [move, count] = String.split(line, " ", trim: true)
+
+    {move, String.to_integer(count)}
+  end)
+```
+
+```elixir
+defmodule RopeSimulator do
+  def tail_visited_coord(moves, knot_number) do
+    knots = Enum.map(0..(knot_number - 1), fn _ -> {0, 0} end)
+
+    Enum.reduce(moves, {knots, []}, fn {move, count}, {knots, visited} ->
+      Enum.reduce(0..(count - 1), {knots, visited}, fn _, {knots, visited} ->
+        head = Enum.at(knots, 0)
+
+        head =
+          case move do
+            "U" -> add(head, {0, -1})
+            "D" -> add(head, {0, 1})
+            "L" -> add(head, {-1, 0})
+            "R" -> add(head, {1, 0})
+          end
+
+        knots =
+          knots
+          |> List.update_at(0, fn _ -> head end)
+          |> update_following_knots(knot_number)
+
+        {knots, [Enum.at(knots, knot_number - 1) | visited]}
+      end)
+    end)
+    |> elem(1)
+    |> Enum.uniq()
+  end
+
+  defp update_following_knots(knots, knot_number) do
+    Enum.reduce(1..(knot_number - 1), knots, fn i, knots ->
+      prev = Enum.at(knots, i - 1)
+      current = Enum.at(knots, i)
+
+      {diff_x, diff_y} = diff = diff(prev, current)
+
+      if abs(diff_x) <= 1 and abs(diff_y) <= 1 do
+        knots
+      else
+        move = normalized(diff)
+
+        List.update_at(knots, i, fn _ -> add(current, move) end)
+      end
+    end)
+  end
+
+  defp add({a_x, a_y}, {b_x, b_y}) do
+    {a_x + b_x, a_y + b_y}
+  end
+
+  defp diff({a_x, a_y}, {b_x, b_y}) do
+    {a_x - b_x, a_y - b_y}
+  end
+
+  defp normalized({x, y}) do
+    {normalized(x), normalized(y)}
+  end
+
+  defp normalized(v) when v < 0, do: -1
+  defp normalized(v) when v > 0, do: 1
+  defp normalized(_), do: 0
+end
+```
+
+## Part 1
+
+```elixir
+RopeSimulator.tail_visited_coord(moves, 2) |> Enum.count()
+```
+
+## Part 2
+
+```elixir
+RopeSimulator.tail_visited_coord(moves, 10) |> Enum.count()
+```
