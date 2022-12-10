@@ -44,3 +44,8 @@ https://adventofcode.com/2022/day/8
 https://adventofcode.com/2022/day/9
 
 [![Run in Livebook](https://livebook.dev/badge/v1/gray.svg)](https://livebook.dev/run?url=https%3A%2F%2Fgithub.com%2Fscollon42%2Faoc22%2Fblob%2Fmain%2Fday9.livemd)
+
+## Day 10
+https://adventofcode.com/2022/day/10
+
+[![Run in Livebook](https://livebook.dev/badge/v1/gray.svg)](https://livebook.dev/run?url=https%3A%2F%2Fgithub.com%2Fscollon42%2Faoc22%2Fblob%2Fmain%2Fday10.livemd)

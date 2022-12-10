@@ -1,0 +1,75 @@
+# Day10
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("Your puzzle input")
+```
+
+## Parse input
+
+```elixir
+instructions =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line ->
+    case String.split(line, " ") do
+      [instruction] ->
+        instruction
+
+      [instruction, count] ->
+        {instruction, String.to_integer(count)}
+    end
+  end)
+```
+
+```elixir
+{cycles, _} =
+  Enum.reduce(instructions, {[1], 1}, fn instruction, {cycles, x} ->
+    case instruction do
+      "noop" ->
+        {cycles ++ [x], x}
+
+      {"addx", count} ->
+        new_x = x + count
+        {cycles ++ [x, new_x], new_x}
+    end
+  end)
+```
+
+## Part 1
+
+```elixir
+selected_cycles = [20, 60, 100, 140, 180, 220]
+
+Enum.reduce(selected_cycles, 0, fn i, acc ->
+  acc + Enum.at(cycles, i - 1) * i
+end)
+```
+
+## Part 2
+
+```elixir
+Enum.each(0..(Enum.count(cycles) - 1), fn i ->
+  x = Enum.at(cycles, i)
+
+  col = Integer.mod(i, 40)
+
+  if col == 0 do
+    IO.puts("")
+  end
+
+  if col in [x - 1, x, x + 1] do
+    IO.write(" #")
+  else
+    IO.write("  ")
+  end
+end)
+```
