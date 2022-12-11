@@ -1,0 +1,206 @@
+# Day11
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("Your puzzle input")
+```
+
+## Struct
+
+```elixir
+defmodule Monkey do
+  defstruct [
+    :index,
+    :items,
+    :operation,
+    :divisible_by,
+    :true_target,
+    :false_target,
+    inspect_count: 0
+  ]
+
+  def new_from_note(note_block) do
+    note_block
+    |> String.split("\n", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reduce(%Monkey{}, &read/2)
+  end
+
+  defp read("Monkey" <> value, %__MODULE__{} = monkey) do
+    value =
+      value
+      |> String.replace(":", "")
+      |> String.trim()
+      |> String.to_integer()
+
+    %{monkey | index: value}
+  end
+
+  defp read("Starting items: " <> items, %__MODULE__{} = monkey) do
+    items =
+      items
+      |> String.split(",", trim: true)
+      |> Enum.map(&String.trim/1)
+      |> Enum.map(&String.to_integer/1)
+
+    %{monkey | items: items}
+  end
+
+  defp read("Operation: new = " <> operation, %__MODULE__{} = monkey) do
+    operation =
+      case String.split(operation, " ", trim: true) do
+        ["old", operator, "old"] ->
+          {operator, :old}
+
+        ["old", operator, value] ->
+          {operator, String.to_integer(value)}
+      end
+
+    %{monkey | operation: operation}
+  end
+
+  defp read("Test: divisible by " <> value, %__MODULE__{} = monkey) do
+    %{monkey | divisible_by: String.to_integer(value)}
+  end
+
+  defp read("If true: throw to monkey " <> value, %__MODULE__{} = monkey) do
+    %{monkey | true_target: String.to_integer(value)}
+  end
+
+  defp read("If false: throw to monkey " <> value, %__MODULE__{} = monkey) do
+    %{monkey | false_target: String.to_integer(value)}
+  end
+
+  def apply_operation(%__MODULE__{} = monkey, item) do
+    operation =
+      case monkey.operation do
+        {operator, :old} -> {operator, item}
+        operation -> operation
+      end
+
+    case operation do
+      {"+", value} -> item + value
+      {"*", value} -> item * value
+      _ -> item
+    end
+  end
+
+  def assert?(%__MODULE__{} = monkey, item) do
+    Integer.mod(item, monkey.divisible_by) == 0
+  end
+
+  def get_target(%__MODULE__{} = monkey, item) do
+    if assert?(monkey, item) do
+      monkey.true_target
+    else
+      monkey.false_target
+    end
+  end
+end
+```
+
+## Monkey list
+
+```elixir
+monkeys =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n\n", trim: true)
+  |> Enum.map(&Monkey.new_from_note/1)
+```
+
+## Part 1
+
+```elixir
+stacks = Enum.map(monkeys, & &1.items)
+inspect_counts = Enum.map(monkeys, fn _ -> 0 end)
+monkey_max_index = Enum.count(monkeys) - 1
+
+{_, inspect_counts} =
+  1..20
+  |> Enum.reduce({stacks, inspect_counts}, fn _, {stacks, inspect_counts} ->
+    0..monkey_max_index
+    |> Enum.reduce({stacks, inspect_counts}, fn current_index, {stacks, inspect_counts} ->
+      monkey = Enum.at(monkeys, current_index)
+      items = Enum.at(stacks, current_index)
+      inspect_counts = List.update_at(inspect_counts, current_index, &(&1 + length(items)))
+
+      stacks =
+        items
+        |> Enum.reduce(stacks, fn item, stacks ->
+          item =
+            monkey
+            |> Monkey.apply_operation(item)
+            |> Integer.floor_div(3)
+
+          target_index = Monkey.get_target(monkey, item)
+
+          stacks
+          |> List.update_at(current_index, fn [_ | new_list] -> new_list end)
+          |> List.update_at(target_index, fn items -> items ++ [item] end)
+        end)
+
+      {stacks, inspect_counts}
+    end)
+  end)
+
+inspect_counts
+|> Enum.sort(:desc)
+|> Enum.take(2)
+|> Enum.product()
+```
+
+## Part 2
+
+```elixir
+stacks = Enum.map(monkeys, & &1.items)
+inspect_counts = Enum.map(monkeys, fn _ -> 0 end)
+monkey_max_index = Enum.count(monkeys) - 1
+
+common_diviser =
+  monkeys
+  |> Enum.map(& &1.divisible_by)
+  |> Enum.product()
+
+IO.inspect(common_diviser)
+
+{_, inspect_counts} =
+  1..10_000
+  |> Enum.reduce({stacks, inspect_counts}, fn _, {stacks, inspect_counts} ->
+    0..monkey_max_index
+    |> Enum.reduce({stacks, inspect_counts}, fn current_index, {stacks, inspect_counts} ->
+      monkey = Enum.at(monkeys, current_index)
+      items = Enum.at(stacks, current_index)
+      inspect_counts = List.update_at(inspect_counts, current_index, &(&1 + length(items)))
+
+      stacks =
+        items
+        |> Enum.reduce(stacks, fn item, stacks ->
+          item =
+            monkey
+            |> Monkey.apply_operation(item)
+            |> Integer.mod(common_diviser)
+
+          target_index = Monkey.get_target(monkey, item)
+
+          stacks
+          |> List.update_at(current_index, fn [_ | new_list] -> new_list end)
+          |> List.update_at(target_index, fn items -> items ++ [item] end)
+        end)
+
+      {stacks, inspect_counts}
+    end)
+  end)
+
+inspect_counts
+|> Enum.sort(:desc)
+|> Enum.take(2)
+|> Enum.product()
+```
