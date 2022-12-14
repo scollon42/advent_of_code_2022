@@ -1,0 +1,195 @@
+# Day12
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("Puzzle input")
+```
+
+```elixir
+input =
+  input
+  |> Kino.Input.read()
+```
+
+## Grid module
+
+```elixir
+defmodule Grid do
+  def from_input(input) do
+    input
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line ->
+      line
+      |> String.codepoints()
+      |> Enum.map(fn <<v>> -> v end)
+    end)
+  end
+
+  def find_position(grid, value) do
+    grid
+    |> Enum.with_index()
+    |> Enum.reduce(nil, fn {col, row_index}, acc ->
+      col
+      |> Enum.with_index()
+      |> Enum.find(&(elem(&1, 0) == value))
+      |> case do
+        nil -> acc
+        {_v, col_index} -> {row_index, col_index}
+      end
+    end)
+  end
+
+  def find_all(grid, value) do
+    grid
+    |> Enum.with_index()
+    |> Enum.reduce([], fn {col, row_index}, acc ->
+      col
+      |> Enum.with_index()
+      |> Enum.filter(&(elem(&1, 0) == value))
+      |> case do
+        [] ->
+          acc
+
+        list ->
+          list = Enum.map(list, fn {_, col_index} -> {row_index, col_index} end)
+
+          acc ++ list
+      end
+    end)
+  end
+
+  def update_at(grid, {r, c}, value) do
+    col =
+      grid
+      |> Enum.at(r)
+      |> List.update_at(c, fn _ -> value end)
+
+    grid
+    |> List.update_at(r, fn _ -> col end)
+  end
+
+  def get(grid, row, col) do
+    grid
+    |> Enum.at(row)
+    |> Enum.at(col)
+  end
+
+  def in_range?(grid, row, col) do
+    row_len = length(grid)
+    col_len = grid |> Enum.at(0) |> length()
+
+    cond do
+      row < 0 -> false
+      row >= row_len -> false
+      col < 0 -> false
+      col >= col_len -> false
+      true -> true
+    end
+  end
+
+  def can_move?(grid, {from_r, from_c}, {to_r, to_c}) do
+    with true <- in_range?(grid, to_r, to_c) do
+      current_value = get(grid, from_r, from_c)
+      next_value = get(grid, to_r, to_c)
+
+      next_value - current_value <= 1
+    end
+  end
+end
+```
+
+## Find Start and End and replace value
+
+```elixir
+grid = Grid.from_input(input)
+
+start_position = Grid.find_position(grid, ?S)
+end_position = Grid.find_position(grid, ?E)
+
+grid =
+  grid
+  |> Grid.update_at(start_position, ?a)
+  |> Grid.update_at(end_position, ?z)
+```
+
+## Graph module
+
+```elixir
+defmodule Graph do
+  def from_grid(grid) do
+    row_len = length(grid)
+    col_len = grid |> Enum.at(0) |> length()
+
+    0..(row_len - 1)
+    |> Enum.reduce(%{}, fn row, graph ->
+      0..(col_len - 1)
+      |> Enum.reduce(graph, fn col, graph ->
+        [{0, 1}, {0, -1}, {1, 0}, {-1, 0}]
+        |> Enum.reduce(graph, fn {next_pos_r, next_pos_c}, graph ->
+          new_position = {row + next_pos_r, col + next_pos_c}
+
+          if Grid.can_move?(grid, {row, col}, new_position) do
+            adj = Map.get(graph, {row, col}, [])
+            Map.put(graph, {row, col}, [new_position | adj])
+          else
+            graph
+          end
+        end)
+      end)
+    end)
+  end
+
+  def get_adjacents(graph, position) do
+    Map.get(graph, position, [])
+  end
+
+  def bfs(_, explored, [], [], _), do: explored
+
+  def bfs(graph, explored, [], next, steps) do
+    bfs(graph, explored, next, [], steps + 1)
+  end
+
+  def bfs(graph, explored, [current | queue], next, steps) do
+    if Map.has_key?(explored, current) do
+      bfs(graph, explored, queue, next, steps)
+    else
+      explored = Map.put(explored, current, steps)
+
+      adjs = get_adjacents(graph, current)
+
+      bfs(graph, explored, queue, next ++ adjs, steps)
+    end
+  end
+end
+```
+
+## Part 1
+
+```elixir
+graph = Graph.from_grid(grid)
+
+weights = Graph.bfs(graph, %{}, [start_position], [], 0)
+
+Map.get(weights, end_position)
+```
+
+## Part 2
+
+```elixir
+graph = Graph.from_grid(grid)
+
+grid
+|> Grid.find_all(?a)
+|> Enum.map(fn start ->
+  weights = Graph.bfs(graph, %{}, [start], [], 0)
+  Map.get(weights, end_position)
+end)
+|> Enum.min()
+```
