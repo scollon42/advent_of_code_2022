@@ -1,0 +1,145 @@
+# Day 14
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle input")
+```
+
+```elixir
+structures =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line ->
+    line
+    |> String.split(" -> ", trim: true)
+    |> Enum.map(fn c ->
+      [x, y] =
+        c
+        |> String.split(",", trim: true)
+        |> Enum.map(&String.to_integer/1)
+
+      {x, y}
+    end)
+    |> Enum.chunk_every(2, 1, :discard)
+  end)
+```
+
+```elixir
+defmodule Simulator do
+  def build_coordinates(structures) do
+    structures
+    |> Enum.reduce(%{}, fn structure, coordinates ->
+      structure
+      |> Enum.reduce(coordinates, fn [{from_x, from_y}, {to_x, to_y}], coordinates ->
+        from_x..to_x
+        |> Enum.reduce(coordinates, fn x, coordinates ->
+          from_y..to_y
+          |> Enum.reduce(coordinates, fn y, coordinates ->
+            Map.put(coordinates, {x, y}, :rock)
+          end)
+        end)
+      end)
+    end)
+  end
+
+  def simulate(coordinates, max_depth) do
+    {next_step, coordinates} = falling_sand(coordinates, max_depth)
+
+    if next_step == :cont do
+      simulate(coordinates, max_depth)
+    else
+      coordinates
+    end
+  end
+
+  def falling_sand(coordinates, max_depth, current_position \\ {500, 0}) do
+    vector = {0, 1}
+
+    new_position = add(current_position, vector)
+
+    case type_at(coordinates, max_depth, new_position) do
+      v when v in [:sand, :rock] ->
+        [{-1, 1}, {1, 1}]
+        |> Enum.find(fn v ->
+          pos = add(current_position, v)
+
+          type_at(coordinates, max_depth, pos) == :air
+        end)
+        |> case do
+          nil ->
+            if current_position != {500, 0} do
+              {:cont, Map.put(coordinates, current_position, :sand)}
+            else
+              {:halt, Map.put(coordinates, current_position, :sand)}
+            end
+
+          v ->
+            falling_sand(coordinates, max_depth, add(current_position, v))
+        end
+
+      _ ->
+        falling_sand(coordinates, max_depth, new_position)
+    end
+  end
+
+  defp add({ax, ay}, {bx, by}), do: {ax + bx, ay + by}
+
+  def type_at(_coordinates, max_depth, {_, d}) when d >= max_depth, do: :rock
+  def type_at(coordinates, _, position), do: Map.get(coordinates, position, :air)
+
+  def print(coordinates, depth, wide, max_depth) do
+    depth
+    |> Enum.each(fn y ->
+      wide
+      |> Enum.each(fn x ->
+        case type_at(coordinates, max_depth, {x, y}) do
+          :rock -> IO.write("#")
+          :sand -> IO.write("o")
+          _ -> IO.write(".")
+        end
+      end)
+
+      IO.write("\n")
+    end)
+  end
+
+  def find_depth_range(coordinates) do
+    {a, b} =
+      coordinates
+      |> Enum.map(fn {{_, d}, _} -> d end)
+      |> Enum.min_max()
+
+    {a, b + 2}
+  end
+
+  def find_width_range(coordinates) do
+    coordinates
+    |> Enum.map(fn {{w, _}, _} -> w end)
+    |> Enum.min_max()
+  end
+end
+```
+
+```elixir
+coordinates = Simulator.build_coordinates(structures)
+
+{min_depth, max_depth} = depth_range = Simulator.find_depth_range(coordinates)
+{min_width, max_width} = Simulator.find_width_range(coordinates)
+
+IO.inspect(max_depth)
+coordinates = Simulator.simulate(coordinates, max_depth)
+
+Simulator.print(coordinates, min_depth..max_depth, min_width..max_width, max_depth)
+
+coordinates
+|> Enum.filter(fn {_, v} -> v == :sand end)
+|> Enum.count()
+```
