@@ -1,0 +1,115 @@
+# Day 15
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"},
+  {:topo, "~> 0.5"}
+])
+```
+
+## Input
+
+```elixir
+input = Kino.Input.textarea("Puzzle input")
+```
+
+## Parse input and build sensor <> beacon map
+
+```elixir
+regex =
+  ~r/Sensor at x=(?<sensor_x>-?\d+), y=(?<sensor_y>-?\d+): closest beacon is at x=(?<beacon_x>-?\d+), y=(?<beacon_y>-?\d+)/
+
+sensor_beacon =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.reduce(%{}, fn line, acc ->
+    captured = Regex.named_captures(regex, line)
+
+    captured =
+      captured
+      |> Enum.map(fn {k, v} -> {k, String.to_integer(v)} end)
+      |> Map.new()
+
+    sensor = {Map.get(captured, "sensor_x"), Map.get(captured, "sensor_y")}
+
+    beacon = {Map.get(captured, "beacon_x"), Map.get(captured, "beacon_y")}
+
+    Map.put(acc, sensor, beacon)
+  end)
+```
+
+## Build polygons
+
+```elixir
+polygons =
+  sensor_beacon
+  |> Enum.map(fn {sensor, beacon} ->
+    {sensor_x, sensor_y} = sensor
+
+    {beacon_x, beacon_y} = beacon
+
+    area = abs(sensor_x - beacon_x) + abs(sensor_y - beacon_y)
+
+    points = [
+      {sensor_x + area, sensor_y},
+      {sensor_x, sensor_y + area},
+      {sensor_x - area, sensor_y},
+      {sensor_x, sensor_y - area},
+      {sensor_x + area, sensor_y}
+    ]
+
+    %{type: "Polygon", coordinates: [points]}
+  end)
+```
+
+## Part 1
+
+```elixir
+{min_x, max_x} =
+  sensor_beacon
+  |> Enum.flat_map(fn {{sx, _}, {bx, _}} -> [sx, bx] end)
+  |> Enum.min_max()
+
+row = 2_000_000
+
+min_x..max_x
+|> Enum.map(fn x ->
+  polygons
+  |> Enum.any?(fn polygon ->
+    Topo.intersects?(polygon, {x, row})
+  end)
+end)
+|> Enum.reject(&(&1 == false))
+|> Enum.count()
+# for some reason
+|> Kernel.-(1)
+```
+
+## Part 2
+
+```elixir
+0..4_000_000
+|> Enum.reduce_while(nil, fn y, _ ->
+  0..4_000_000
+  |> Enum.reduce_while(nil, fn x, _ ->
+    point = {x, y}
+
+    intersect? =
+      polygons
+      |> Enum.any?(fn polygon ->
+        Topo.intersects?(polygon, point)
+      end)
+
+    if intersect? do
+      {:cont, nil}
+    else
+      {:halt, point}
+    end
+  end)
+  |> case do
+    nil -> {:cont, nil}
+    point -> {:halt, point}
+  end
+end)
+```

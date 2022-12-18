@@ -1,0 +1,320 @@
+# Day 17
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("Puzzle input")
+```
+
+```elixir
+defmodule Grid do
+  @width 6
+  @shapes [
+    [
+      # @@@@
+      {0, 2},
+      {0, 3},
+      {0, 4},
+      {0, 5}
+    ],
+    [
+      # .@.
+      # @@@
+      # .@.
+      {0, 3},
+      {1, 2},
+      {1, 3},
+      {1, 4},
+      {2, 3}
+    ],
+    [
+      # ..@
+      # ..@
+      # @@@
+      {0, 2},
+      {0, 3},
+      {0, 4},
+      {2, 4},
+      {1, 4}
+    ],
+    [
+      # @
+      # @
+      # @
+      # @
+      {0, 2},
+      {1, 2},
+      {2, 2},
+      {3, 2}
+    ],
+    [
+      # @@
+      # @@
+      {0, 2},
+      {0, 3},
+      {1, 2},
+      {1, 3}
+    ]
+  ]
+
+  def new() do
+    0..@width
+    |> Enum.reduce(%{}, fn w, acc ->
+      Map.put(acc, {0, w}, :floor)
+    end)
+  end
+
+  def falling_shape(grid, moves, current_move_index, shape_index) do
+    highest = highest_position(grid) + 4
+
+    shape = shape_at_starting_pos(highest, shape_index)
+
+    shape = apply_move(grid, shape, moves, current_move_index)
+    current_move_index = Integer.mod(current_move_index + 1, length(moves))
+
+    0..highest
+    |> Enum.reduce_while({grid, shape, current_move_index}, fn _,
+                                                               {grid, shape, current_move_index} ->
+      shape = move_one_down(grid, shape)
+
+      shape = apply_move(grid, shape, moves, current_move_index)
+      current_move_index = Integer.mod(current_move_index + 1, length(moves))
+
+      if can_continue_down?(grid, shape) do
+        {:cont, {grid, shape, current_move_index}}
+      else
+        {:halt, {place_shape(grid, shape), current_move_index}}
+      end
+    end)
+  end
+
+  def print(highest, grid, shape \\ []) do
+    for h <- 0..highest |> Enum.reverse() do
+      for w <- 0..6 do
+        if Enum.any?(shape, &(&1 == {h, w})) do
+          IO.write("@")
+        else
+          case Grid.at(grid, {h, w}) do
+            :air -> IO.write(".")
+            :rock -> IO.write("#")
+            :floor -> IO.write("-")
+          end
+        end
+      end
+
+      IO.write('\n')
+    end
+  end
+
+  defp move_one_down(grid, shape) do
+    new_shape =
+      Enum.map(shape, fn {h, w} ->
+        {h - 1, w}
+      end)
+
+    if blocked?(grid, new_shape) do
+      shape
+    else
+      new_shape
+    end
+  end
+
+  defp blocked?(grid, shape) do
+    Enum.any?(shape, fn pos -> at(grid, pos) != :air end)
+  end
+
+  defp can_continue_down?(grid, shape) do
+    new_shape =
+      Enum.map(shape, fn {h, w} ->
+        {h - 1, w}
+      end)
+
+    not blocked?(grid, new_shape)
+  end
+
+  defp apply_move(grid, shape, moves, current_move_index) do
+    move = Enum.at(moves, current_move_index)
+
+    move_w =
+      case move do
+        ">" -> 1
+        "<" -> -1
+      end
+
+    new_shape =
+      Enum.map(shape, fn {h, w} ->
+        {h, w + move_w}
+      end)
+
+    if out_of_range?(grid, new_shape) do
+      shape
+    else
+      new_shape
+    end
+  end
+
+  defp out_of_range?(grid, shape) do
+    Enum.any?(shape, fn {_, w} = pos ->
+      w < 0 or w > @width or at(grid, pos) != :air
+    end)
+  end
+
+  def place_shape(grid, shape) do
+    shape
+    |> Enum.reduce(grid, fn pos, grid ->
+      set(grid, pos, :rock)
+    end)
+  end
+
+  def highest_position(grid) do
+    grid
+    |> Enum.filter(fn {_, type} -> type in [:rock, :floor] end)
+    |> Enum.max_by(fn {{h, _}, _} -> h end)
+    |> elem(0)
+    |> elem(0)
+  end
+
+  def at(grid, position) do
+    Map.get(grid, position, :air)
+  end
+
+  def set(grid, position, type) do
+    Map.put(grid, position, type)
+  end
+
+  defp shape_at_starting_pos(highest, shape_index) do
+    shape = Enum.at(@shapes, shape_index)
+
+    Enum.map(shape, fn {h, w} -> {h + highest, w} end)
+  end
+
+  def snapshot(grid) do
+    snapshot =
+      Enum.reduce(grid, [], fn {{h, w}, _}, acc ->
+        insert_or_update(acc, w, max(Enum.at(acc, w, -1), h))
+      end)
+
+    h = Enum.max(snapshot)
+
+    Enum.map(snapshot, fn v ->
+      v - h
+    end)
+  end
+
+  defp insert_or_update(list, index, value) do
+    case Enum.at(list, index) do
+      nil -> List.insert_at(list, index, value)
+      _ -> List.update_at(list, index, fn _ -> value end)
+    end
+  end
+end
+```
+
+## Part 1
+
+```elixir
+grid = Grid.new()
+
+moves =
+  input
+  |> Kino.Input.read()
+  |> String.codepoints()
+
+{grid, _, _} =
+  Enum.reduce(1..2022, {grid, 0, 0}, fn _, {grid, shape_index, current_move_index} ->
+    {grid, current_move_index} = Grid.falling_shape(grid, moves, current_move_index, shape_index)
+
+    {grid, Integer.mod(shape_index + 1, 5), current_move_index}
+  end)
+
+h = Grid.highest_position(grid)
+Grid.print(h, grid)
+
+h
+```
+
+## Part 2
+
+```elixir
+defmodule State do
+  defstruct high: 0, offset: 0, seen: %{}, shape_index: 0, current_move_index: 0
+end
+
+defmodule Part2 do
+  def run(grid, moves, total) do
+    do_run(total, 0, grid, moves, %State{})
+  end
+
+  defp do_run(total, rock_count, _, _, %State{high: high, offset: offset})
+       when rock_count >= total do
+    high + offset
+  end
+
+  defp do_run(total, rock_count, grid, moves, %State{} = state) do
+    rock_count = rock_count + 1
+
+    {grid, current_move_index} =
+      Grid.falling_shape(grid, moves, state.current_move_index, state.shape_index)
+
+    shape_index = Integer.mod(state.shape_index + 1, 5)
+
+    high = Grid.highest_position(grid)
+
+    state = %{
+      state
+      | current_move_index: current_move_index,
+        shape_index: shape_index,
+        high: high
+    }
+
+    key = {shape_index, current_move_index, Grid.snapshot(grid)}
+
+    if Map.has_key?(state.seen, key) do
+      {rock_count, offset} =
+        state.seen
+        |> Map.get(key)
+        |> get_rock_count_and_offset(total, rock_count, high)
+
+      seen = Map.put(%{}, key, {rock_count, high})
+
+      state = %{state | seen: seen, offset: offset}
+      do_run(total, rock_count, grid, moves, state)
+    else
+      seen = Map.put(state.seen, key, {rock_count, high})
+      state = %{state | seen: seen}
+
+      do_run(total, rock_count, grid, moves, state)
+    end
+  end
+
+  defp get_rock_count_and_offset({seen_rock_count, seen_high}, total, rock_count, high) do
+    remaining_rocks = total - rock_count
+    repetition = Integer.floor_div(remaining_rocks, rock_count - seen_rock_count)
+
+    offset = repetition * (high - seen_high)
+
+    rock_count = rock_count + repetition * (rock_count - seen_rock_count)
+
+    {rock_count, offset}
+  end
+end
+```
+
+```elixir
+grid = Grid.new()
+
+moves =
+  input
+  |> Kino.Input.read()
+  |> String.codepoints()
+
+total = 1_000_000_000_000
+
+Part2.run(grid, moves, total)
+```

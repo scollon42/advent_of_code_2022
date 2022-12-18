@@ -1,0 +1,36 @@
+# Day 16
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("Puzzle input")
+```
+
+```elixir
+regex =
+  ~r/Valve (?<name>[A-Z]{2}) has flow rate=(?<rate>\d+); tunnels? leads? to valves? (?<linked_valve>.+)/
+
+{pressures, neighbors} =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.reduce({%{}, %{}}, fn line, {pressures, neighbors} ->
+    %{
+      "name" => name,
+      "rate" => pressure_rate,
+      "linked_valve" => linked_valve
+    } = Regex.named_captures(regex, line)
+
+    pressures = Map.put(pressures, name, String.to_integer(pressure_rate))
+
+    neighbors = Map.put(neighbors, name, String.split(linked_valve, ", ", trim: true))
+
+    {pressures, neighbors}
+  end)
+```
