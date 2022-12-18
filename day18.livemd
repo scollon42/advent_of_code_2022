@@ -1,0 +1,111 @@
+# Day 18
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.8.0"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.textarea("Puzzle input")
+```
+
+```elixir
+cubes =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line ->
+    line
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.to_integer/1)
+    |> Enum.map(&(&1 + 1))
+  end)
+```
+
+## Part 1
+
+```elixir
+cubes
+|> Enum.map(fn [x, y, z] ->
+  [
+    [-1, 0, 0],
+    [1, 0, 0],
+    [0, -1, 0],
+    [0, 1, 0],
+    [0, 0, -1],
+    [0, 0, 1]
+  ]
+  |> Enum.reject(fn [nx, ny, nz] ->
+    new_pos = [x + nx, y + ny, z + nz]
+
+    new_pos in cubes
+  end)
+  |> Enum.count()
+end)
+|> Enum.sum()
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def get_neighbors([x, y, z]) do
+    [
+      [-1, 0, 0],
+      [1, 0, 0],
+      [0, -1, 0],
+      [0, 1, 0],
+      [0, 0, -1],
+      [0, 0, 1]
+    ]
+    |> Enum.map(fn [nx, ny, nz] -> [x + nx, y + ny, z + nz] end)
+  end
+
+  def get_reachable_neighbors(cubes, pos) do
+    pos
+    |> get_neighbors()
+    |> Enum.reject(fn [x, y, z] = n_pos ->
+      cond do
+        n_pos in cubes -> true
+        x < 0 or y < 0 or z < 0 or x > 22 or y > 22 or z > 22 -> true
+        true -> false
+      end
+    end)
+  end
+
+  def bfs(_cubes, [], [], explored), do: explored
+
+  def bfs(cubes, [], next, explored) do
+    bfs(cubes, next, [], explored)
+  end
+
+  def bfs(cubes, [current | queue], next, explored) do
+    if current in explored do
+      bfs(cubes, queue, next, explored)
+    else
+      explored = [current | explored]
+      next = next ++ get_reachable_neighbors(cubes, current)
+      bfs(cubes, queue, next, explored)
+    end
+  end
+end
+```
+
+```elixir
+start = [0, 0, 0]
+queue = [start]
+explored = [start]
+
+explored = Part2.bfs(cubes, queue, Part2.get_reachable_neighbors(cubes, start), explored)
+
+Enum.reduce(cubes, 0, fn cube, count ->
+  cube
+  |> Part2.get_neighbors()
+  |> Enum.filter(&(&1 in explored))
+  |> Enum.count()
+  |> Kernel.+(count)
+end)
+```
